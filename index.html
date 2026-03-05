@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TEPS 어휘 마스터 (4지선다)</title>
+    <style>
+        :root { --main-yellow: #FFD700; --bg-paper: #fdfdfd; --line-gray: #e0e0e0; --text-dark: #333; }
+        body { font-family: 'Malgun Gothic', sans-serif; background-color: #d1d1d1; display: flex; justify-content: center; margin: 0; padding: 20px; }
+        
+        .phone-screen { background: #333; padding: 10px; border-radius: 30px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); width: 100%; max-width: 400px; }
+        .app-container { background: var(--bg-paper); border-radius: 20px; overflow: hidden; display: flex; flex-direction: column; min-height: 650px; position: relative; }
+        
+        .header { background: #2c3e50; color: var(--main-yellow); padding: 15px; text-align: center; font-weight: bold; font-size: 1.1rem; }
+        
+        .quiz-body { flex: 1; padding: 20px; display: flex; flex-direction: column; }
+        
+        /* 퀴즈 레이아웃 */
+        .question-box { 
+            height: 150px; 
+            display: flex; 
+            flex-direction: column;
+            align-items: center; 
+            justify-content: center; 
+            margin-bottom: 30px; 
+            border-bottom: 2px solid var(--line-gray);
+        }
+        .question-word { font-size: 2.2rem; font-weight: bold; color: #2c3e50; text-align: center; }
+        .question-category { font-size: 0.8rem; color: #999; margin-top: 5px; }
+
+        .options-grid { display: flex; flex-direction: column; gap: 12px; }
+        .option-btn { 
+            background: white; 
+            border: 1px solid #ccc; 
+            padding: 16px; 
+            border-radius: 12px; 
+            font-size: 1rem; 
+            cursor: pointer; 
+            transition: 0.2s; 
+            text-align: left; 
+            font-weight: 500;
+            box-shadow: 2px 2px 5px rgba(0,0,0,0.05);
+        }
+        .option-btn:hover { background: #fdf9e7; border-color: var(--main-yellow); }
+        .option-btn:active { transform: scale(0.98); }
+        
+        /* 결과 상태 */
+        .option-btn.correct { background-color: #a2ffaf !important; border-color: #2ecc71 !important; color: #155724; }
+        .option-btn.wrong { background-color: #ffcccc !important; border-color: #e74c3c !important; color: #721c24; }
+
+        .footer { padding: 15px; background: #eee; text-align: center; }
+        .status-text { font-size: 0.85rem; color: #555; margin-bottom: 5px; font-weight: bold; }
+        .progress-bar-container { width: 100%; height: 8px; background: #ddd; border-radius: 4px; overflow: hidden; }
+        #progress-fill { width: 0%; height: 100%; background: var(--main-yellow); transition: 0.3s; }
+    </style>
+</head>
+<body>
+    <div class="phone-screen">
+        <div class="app-container">
+            <div class="header">TEPS 단어 퀴즈 (UNIT 01)</div>
+            <div class="quiz-body">
+                <div class="question-box">
+                    <div id="question" class="question-word">준비중...</div>
+                </div>
+                <div id="options" class="options-grid"></div>
+            </div>
+            <div class="footer">
+                <div id="status-text" class="status-text">틀린 단어는 나중에 다시 나옵니다.</div>
+                <div class="progress-bar-container">
+                    <div id="progress-fill"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 데이터셋
+        const fullWordList = [
+            // # 건강
+            {en: "property, real estate", ko: "부동산"},
+            {en: "appetite", ko: "식욕"},
+            {en: "protein", ko: "단백질"},
+            {en: "fat", ko: "지방"},
+            {en: "carbohydrate", ko: "탄수화물"},
+            {en: "physical inactivity", ko: "운동 부족"},
+            {en: "gain weight", ko: "살찌다. 체중이 늘다"},
+            {en: "obesity", ko: "비만"},
+            {en: "diabetes", ko: "당뇨병"},
+            {en: "high blood pressure", ko: "고혈압"},
+            {en: "work out", ko: "운동하다"},
+            {en: "aerobic activity", ko: "유산소 운동"},
+            {en: "watch what I eat", ko: "식단에 신경 쓰다"},
+            {en: "lose weight", ko: "살 빠지다. 체중이 줄다"},
+            {en: "nimble, agile", ko: "날렵한"},
+            {en: "deficiency", ko: "결핍"},
+            {en: "bloodshot eyes", ko: "충혈된 눈"},
+            {en: "relieve tension", ko: "긴장을 풀어주다"},
+            {en: "prevent heart attack", ko: "심장마비를 예방하다"},
+
+            // # 재정
+            {en: "deposit", ko: "예금하다"},
+            {en: "withdraw", ko: "출금하다"},
+            {en: "buy life insurance", ko: "생명보험을 들다"},
+            {en: "finance", ko: "자금을 마련하다. 돈을 융통하다"},
+            {en: "transaction", ko: "거래, 매매"},
+            {en: "insolvent, bankrupt", ko: "파산한, 지급 불능의"},
+            {en: "mortgage", ko: "대출금, 융자금"},
+            {en: "balance", ko: "(계좌의) 잔고"},
+
+            // # 부동산
+            {en: "rent", ko: "월세"},
+            {en: "lease runs out", ko: "임대 기간이 끝나다"},
+            {en: "put up the rent", ko: "월세를 올리다"},
+            {en: "file a complaint", ko: "이의를 제기하다"},
+            {en: "evict", ko: "(건물에서) 쫓아내다. 퇴거시키다"},
+            {en: "shabby", ko: "허름한, 다 낡은"},
+            {en: "spacious", ko: "넓은, 널찍한"},
+            {en: "sweep", ko: "쓸다. 청소하다"},
+            {en: "upkeep", ko: "유지, 유지비"},
+            {en: "furnished", ko: "가구가 비치된"},
+            {en: "measure", ko: "(수치를) 측정하다. 재다"},
+            {en: "tenant", ko: "세입자"},
+            {en: "landlord, property owner", ko: "집주인, 건물주"},
+
+            // # 음식
+            {en: "dish, cuisine", ko: "요리, 음식"},
+            {en: "recipe", ko: "조리법"},
+            {en: "catering (service)", ko: "출장 뷔페"},
+            {en: "ingredient", ko: "요리 재료"},
+            {en: "occupied", ko: "(테이블 등을) 사용 중인"},
+            {en: "delectable", ko: "맛있는"},
+            {en: "bland", ko: "맛이 자극적이지 않은, 싱거운"},
+            {en: "grab a bite", ko: "간단히 먹다"},
+            {en: "dilute", ko: "희석하다"},
+            {en: "flavor", ko: "맛, 풍미"},
+            {en: "devour", ko: "먹어 치우다"},
+
+            // # 업무
+            {en: "apply", ko: "(회사에) 지원하다"},
+            {en: "applicant, candidate", ko: "지원자"},
+            {en: "reference", ko: "추천서"},
+            {en: "successful applicant", ko: "합격자"},
+            {en: "hire, employ, recruit", ko: "고용[채용]하다"},
+            {en: "resign", ko: "사임하다"},
+            {en: "commute", ko: "출퇴근하다"},
+            {en: "telecommute", ko: "재택근무하다"},
+            {en: "minimum wage", ko: "최저 임금"},
+            {en: "workweek", ko: "주노동시간"},
+            {en: "employee, staff", ko: "직원"},
+            {en: "colleague, coworker", ko: "동료"},
+            {en: "supervisor", ko: "감독자"},
+            {en: "director", ko: "이사"},
+            {en: "CEO, Chief Executive (Officer)", ko: "최고경영자"},
+            {en: "branch", ko: "지사[지점]"},
+            {en: "executive", ko: "임원"},
+            {en: "headquarters", ko: "본사[본점, 본부]"},
+            {en: "be transferred (to)", ko: "(~로) 발령 나다"},
+            {en: "appoint", ko: "임명하다"},
+            {en: "opening", ko: "빈자리, 공석"},
+            {en: "competent", ko: "유능한"},
+            {en: "profitable", ko: "수익성이 있는"},
+            {en: "incentive", ko: "장려책, 혜택"},
+            {en: "novice", ko: "초보자"},
+            {en: "paycheck (= wage)", ko: "봉급, 급여"},
+            {en: "agenda", ko: "회의 의제"},
+            {en: "attentive", ko: "집중하는, 주의를 기울이는"},
+            {en: "shift", ko: "교대 근무"},
+            {en: "job performance", ko: "업무 성과"},
+
+            // # 학업
+            {en: "enroll, register", ko: "(학교, 프로그램에) 등록하다"},
+            {en: "roll call", ko: "출석 확인"},
+            {en: "faculty", ko: "교수진"},
+            {en: "audit", ko: "청강하다"},
+            {en: "semester", ko: "학기"},
+            {en: "tuition", ko: "수업료"},
+            {en: "diploma", ko: "졸업장"},
+            {en: "graduate student", ko: "대학원생"},
+            {en: "paper, thesis", ko: "논문"},
+            {en: "certificate", ko: "증명서, 자격증"},
+            {en: "bachelor's degree", ko: "학사 학위"},
+            {en: "master's degree", ko: "석사 학위"},
+            {en: "doctor's degree", ko: "박사 학위"},
+            {en: "plagiarism", ko: "표절"},
+            {en: "fundamental", ko: "근본적인"},
+
+            // # 쇼핑
+            {en: "net price", ko: "정가"},
+            {en: "sell by date", ko: "유통기한"},
+            {en: "monthly installment", ko: "할부금"},
+            {en: "retail store", ko: "소매점"},
+            {en: "wholesale store", ko: "도매점"},
+            {en: "shelf", ko: "선반"},
+            {en: "have it delivered", ko: "배달시키다"},
+            {en: "afford", ko: "을 살 여유가 있다"},
+            {en: "estimate", ko: "견적서"},
+            {en: "garment", ko: "의류, 의복"},
+            {en: "browse", ko: "둘러보다. 훑어보다"},
+            {en: "complimentary", ko: "무료의"},
+            {en: "voucher", ko: "상품권, 할인권"},
+            {en: "refund, moneyback", ko: "환불"},
+            {en: "guarantee", ko: "보장하다"},
+            {en: "exorbitant", ko: "(가격이) 터무니없는"},
+            {en: "reasonable", ko: "(가격이) 합리적인"},
+            {en: "customize", ko: "맞춤 제작해 주다"},
+
+            // # 교통
+            {en: "traffic accident", ko: "교통사고"},
+            {en: "hectic", ko: "정신없이 바쁜"},
+            {en: "collision", ko: "충돌"},
+            {en: "valet parking", ko: "대리주차"},
+            {en: "pedestrian", ko: "보행자"},
+            {en: "mileage", ko: "주행 거리, 연비"},
+            {en: "rear-view mirror", ko: "백미러"},
+            {en: "windshield", ko: "자동차 앞 유리"},
+            {en: "traffic jam [congestion]", ko: "교통체증"},
+            {en: "car exhaust", ko: "자동차 배기가스"},
+            {en: "noise pollution", ko: "소음공해"},
+            {en: "take a detour", ko: "우회로를 타다"},
+            {en: "shortcut", ko: "지름길"},
+            {en: "crossroads, intersection", ko: "교차로, 사거리"},
+
+            // # 질병
+            {en: "infectious disease, epidemic", ko: "전염병"},
+            {en: "immune to", ko: "~에 면역이 있는"},
+            {en: "cure, treat", ko: "치료, 치료하다"},
+            {en: "infection", ko: "감염"},
+            {en: "symptom", ko: "증세"},
+            {en: "chronic", ko: "만성의"},
+            {en: "vicious (= malignant)", ko: "악성의"},
+            {en: "prone", ko: "(부상 등을) 당하기 쉬운"},
+            {en: "sore, painful", ko: "아픈"},
+            {en: "public health authorities", ko: "공중 보건 당국"},
+            {en: "be checked for the virus", ko: "바이러스 검사를 받다"},
+            {en: "diagnose", ko: "진단하다"},
+            {en: "test positive", ko: "양성반응을 보이다"},
+            {en: "confirmed patient", ko: "확진 환자"},
+            {en: "transmission", ko: "전염"},
+            {en: "quarantine", ko: "격리(하다)"},
+            {en: "trace the patient's steps", ko: "환자의 동선을 추적하다"},
+            {en: "make a full recovery", ko: "완치되다"},
+            {en: "be discharged from quarantine", ko: "격리 해제되다"}
+        ];
+
+        let wrongWords = []; // 틀린 단어 저장소
+        let currentQuestion = null;
+        let totalAnswered = 0;
+
+        function nextQuestion() {
+            const questionEl = document.getElementById('question');
+            const optionsEl = document.getElementById('options');
+            const statusEl = document.getElementById('status-text');
+            const progressEl = document.getElementById('progress-fill');
+            
+            // 1. 문제 선정: 틀린 단어가 있으면 40% 확률로 오답 노트에서 출제
+            if (wrongWords.length > 0 && Math.random() < 0.4) {
+                currentQuestion = wrongWords[Math.floor(Math.random() * wrongWords.length)];
+                statusEl.innerText = "복습 모드: 이전에 틀린 단어입니다!";
+            } else {
+                currentQuestion = fullWordList[Math.floor(Math.random() * fullWordList.length)];
+                statusEl.innerText = `오답 노트: ${wrongWords.length}개 저장됨`;
+            }
+
+            questionEl.innerText = currentQuestion.en;
+
+            // 2. 선택지 구성 (정답 1 + 무작위 오답 3)
+            let options = [currentQuestion];
+            while (options.length < 4) {
+                let randomWord = fullWordList[Math.floor(Math.random() * fullWordList.length)];
+                if (!options.some(o => o.en === randomWord.en)) {
+                    options.push(randomWord);
+                }
+            }
+            options.sort(() => 0.5 - Math.random());
+
+            // 3. 버튼 생성
+            optionsEl.innerHTML = '';
+            options.forEach((opt, index) => {
+                const btn = document.createElement('button');
+                btn.className = 'option-btn';
+                btn.innerText = `${opt.ko}`;
+                btn.onclick = () => checkAnswer(opt, btn);
+                optionsEl.appendChild(btn);
+            });
+
+            // 4. 진행도 표시
+            totalAnswered++;
+            let progress = (totalAnswered % 10) * 10;
+            if (progress === 0 && totalAnswered > 0) progress = 100;
+            progressEl.style.width = progress + "%";
+        }
+
+        function checkAnswer(selected, btn) {
+            const allButtons = document.querySelectorAll('.option-btn');
+            allButtons.forEach(b => b.disabled = true);
+
+            if (selected.en === currentQuestion.en) {
+                btn.classList.add('correct');
+                // 정답을 맞추면 오답 노트에서 제거
+                wrongWords = wrongWords.filter(w => w.en !== currentQuestion.en);
+            } else {
+                btn.classList.add('wrong');
+                // 틀리면 오답 노트에 추가 (중복 방지)
+                if (!wrongWords.some(w => w.en === currentQuestion.en)) {
+                    wrongWords.push(currentQuestion);
+                }
+                // 정답 버튼 표시
+                allButtons.forEach(b => {
+                    if (b.innerText === currentQuestion.ko) b.classList.add('correct');
+                });
+            }
+
+            setTimeout(nextQuestion, 1200);
+        }
+
+        window.onload = nextQuestion;
+    </script>
+</body>
+</html>
